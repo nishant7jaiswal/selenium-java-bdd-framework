@@ -1,0 +1,38 @@
+[
+  {
+    "username": "standard_user",
+    "password": "secret_sauce",
+    "email": "standard@test.com",
+    "firstName": "Standard",
+    "lastName": "User",
+    "role": "USER",
+    "active": true
+  },
+  {
+    "username": "admin_user",
+    "password": "admin_pass",
+    "email": "admin@test.com",
+    "firstName": "Admin",
+    "lastName": "User",
+    "role": "ADMIN",
+    "active": true
+  },
+  {
+    "username": "readonly_user",
+    "password": "read_pass",
+    "email": "readonly@test.com",
+    "firstName": "ReadOnly",
+    "lastName": "User",
+    "role": "VIEWER",
+    "active": true
+  },
+  {
+    "username": "locked_out_user",
+    "password": "secret_sauce",
+    "email": "locked@test.com",
+    "firstName": "Locked",
+    "lastName": "User",
+    "role": "USER",
+    "active": false
+  }
+]

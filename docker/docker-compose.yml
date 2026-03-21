@@ -1,0 +1,112 @@
+version: "3.8"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Docker Compose — Selenium Grid 4 + Test Runner
+# Usage:
+#   docker-compose up -d                  → start Grid
+#   docker-compose up tests               → run tests
+#   docker-compose down --remove-orphans  → tear down
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Selenium Grid Hub ──────────────────────────────────────────────────
+  selenium-hub:
+    image: selenium/hub:4.18.1
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+      - "4442:4442"
+      - "4443:4443"
+    environment:
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_SESSION_REQUEST_TIMEOUT=300
+      - SE_SESSION_RETRY_INTERVAL=5
+    networks:
+      - selenium-grid
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Chrome Node ────────────────────────────────────────────────────────
+  chrome:
+    image: selenium/node-chrome:4.18.1
+    container_name: selenium-chrome
+    shm_size: "2gb"
+    depends_on:
+      selenium-hub:
+        condition: service_healthy
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=3
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_VNC_NO_PASSWORD=1
+    ports:
+      - "7900:7900"   # noVNC — view browser live at http://localhost:7900
+    networks:
+      - selenium-grid
+    deploy:
+      replicas: 2
+
+  # ── Firefox Node ───────────────────────────────────────────────────────
+  firefox:
+    image: selenium/node-firefox:4.18.1
+    container_name: selenium-firefox
+    shm_size: "2gb"
+    depends_on:
+      selenium-hub:
+        condition: service_healthy
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=2
+    networks:
+      - selenium-grid
+
+  # ── Test Runner ────────────────────────────────────────────────────────
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test-runner
+    depends_on:
+      selenium-hub:
+        condition: service_healthy
+    environment:
+      - BROWSER=${BROWSER:-chrome}
+      - ENV=${ENV:-qa}
+      - TAGS=${TAGS:-@smoke}
+      - HEADLESS=true
+      - REMOTE=true
+      - GRID_URL=http://selenium-hub:4444/wd/hub
+    volumes:
+      - ./target/allure-results:/app/target/allure-results
+      - ./target/screenshots:/app/target/screenshots
+      - ./target/logs:/app/target/logs
+      - ./target/cucumber-reports:/app/target/cucumber-reports
+    networks:
+      - selenium-grid
+    command: ["test", "-Dtags=${TAGS:-@smoke}", "-Dremote=true", "-Dgrid.url=http://selenium-hub:4444/wd/hub"]
+
+  # ── Allure Report Server ───────────────────────────────────────────────
+  allure:
+    image: frankescobar/allure-docker-service:latest
+    container_name: allure-server
+    environment:
+      - CHECK_RESULTS_EVERY_SECONDS=5
+      - KEEP_HISTORY=20
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./target/allure-results:/app/allure-results
+    networks:
+      - selenium-grid
+
+networks:
+  selenium-grid:
+    driver: bridge
