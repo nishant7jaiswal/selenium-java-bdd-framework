@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
   schedule:
     # Nightly regression at 1 AM IST (7:30 PM UTC)
-    - cron: '30 19 * * *'
+    - cron: ''
   workflow_dispatch:
     inputs:
       browser:
